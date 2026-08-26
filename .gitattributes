@@ -1,2 +1,4 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Ensure shell scripts maintain LF line endings
+*.sh text eol=lf
+gradlew text eol=lf
+gradle/wrapper/gradle-wrapper.properties text eol=lf
