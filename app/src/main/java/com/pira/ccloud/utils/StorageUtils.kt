@@ -604,6 +604,22 @@ object StorageUtils {
         }
     }
     
+    /**
+     * Returns the most recently watched episode for a given series (by watchedAt),
+     * regardless of which season it belongs to. Used to resume a series on the
+     * correct season/episode instead of always defaulting back to season 1.
+     */
+    fun getLastWatchedEpisode(context: Context, seriesId: Int): WatchedEpisode? {
+        return try {
+            loadAllWatchedEpisodes(context)
+                .filter { it.seriesId == seriesId }
+                .maxByOrNull { it.watchedAt }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting last watched episode", e)
+            null
+        }
+    }
+
     fun loadAllWatchedEpisodes(context: Context): List<WatchedEpisode> {
         return try {
             val file = File(context.filesDir, "watched_episodes.json")

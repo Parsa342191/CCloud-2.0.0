@@ -96,6 +96,21 @@ fun SingleSeriesScreen(
         series = StorageUtils.loadSeriesFromFile(context, seriesId)
         seasonsViewModel.loadSeasons(seriesId)
     }
+
+    // Once seasons are loaded, jump to the season the user last watched
+    // (instead of always defaulting back to season 1) so progress across
+    // different series/seasons is remembered correctly.
+    LaunchedEffect(seasonsViewModel.seasons) {
+        if (seasonsViewModel.seasons.isNotEmpty()) {
+            val lastWatched = StorageUtils.getLastWatchedEpisode(context, seriesId)
+            if (lastWatched != null) {
+                val matchedIndex = seasonsViewModel.seasons.indexOfFirst { it.id == lastWatched.seasonId }
+                if (matchedIndex != -1) {
+                    selectedSeasonIndex = matchedIndex
+                }
+            }
+        }
+    }
     
     // Source selection dialog
     if (showSourceDialog && selectedEpisode != null && series != null) {
@@ -140,6 +155,8 @@ fun SingleSeriesScreen(
         SeriesDetailsContent(
             series = series!!,
             seasonsViewModel = seasonsViewModel,
+            selectedSeasonIndex = selectedSeasonIndex,
+            onSeasonSelected = { index -> selectedSeasonIndex = index },
             onBackClick = { navController.popBackStack() },
             onEpisodeClick = { episode ->
                 if (episode.sources.isNotEmpty() && series != null) {
@@ -389,6 +406,8 @@ fun DownloadMenu(
 fun SeriesDetailsContent(
     series: Series,
     seasonsViewModel: SeasonsViewModel,
+    selectedSeasonIndex: Int,
+    onSeasonSelected: (Int) -> Unit,
     onBackClick: () -> Unit,
     onEpisodeClick: (Episode) -> Unit,
     onDownloadClick: (Episode) -> Unit,
@@ -396,7 +415,6 @@ fun SeriesDetailsContent(
 ) {
     val context = LocalContext.current
     val layoutDirection = LocalLayoutDirection.current
-    var selectedSeasonIndex by remember { mutableStateOf(0) }
     var showEpisodeImageDialog by remember { mutableStateOf(false) }
     var episodeImageUrl by remember { mutableStateOf("") }
     
@@ -723,6 +741,29 @@ fun SeriesDetailsContent(
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp)
                 )
+
+                // "Continue watching" hint: shows exactly where the user left off
+                // in this series (which season/episode), even across sessions.
+                val lastWatched = remember(series.id, seasonsViewModel.seasons) {
+                    StorageUtils.getLastWatchedEpisode(context, series.id)
+                }
+                if (lastWatched != null) {
+                    val watchedSeason = seasonsViewModel.seasons.find { it.id == lastWatched.seasonId }
+                    val watchedEpisodeTitle = watchedSeason?.episodes
+                        ?.find { it.id == lastWatched.episodeId }
+                        ?.title
+                    if (watchedSeason != null) {
+                        Text(
+                            text = if (watchedEpisodeTitle != null)
+                                "Continue watching: ${watchedSeason.title} - $watchedEpisodeTitle"
+                            else
+                                "Continue watching: ${watchedSeason.title}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 16.dp, top = 2.dp, end = 16.dp)
+                        )
+                    }
+                }
             }
             
             item {
@@ -736,7 +777,7 @@ fun SeriesDetailsContent(
                         val season = seasonsViewModel.seasons[index]
                         Card(
                             modifier = Modifier
-                                .clickable { selectedSeasonIndex = index },
+                                .clickable { onSeasonSelected(index) },
                             colors = CardDefaults.cardColors(
                                 containerColor = if (selectedSeasonIndex == index) 
                                     MaterialTheme.colorScheme.primary 
