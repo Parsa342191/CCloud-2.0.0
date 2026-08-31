@@ -63,6 +63,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -1247,66 +1248,74 @@ fun VideoPlayerScreen(
         // a saved position for this content. If the user picks "continue", playback jumps
         // to that position; otherwise (including a timeout) it plays from the beginning.
         if (showResumePrompt) {
-            Row(
+            Surface(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
-                    .padding(16.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color.Black.copy(alpha = 0.85f))
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                tonalElevation = 3.dp,
+                shadowElevation = 2.dp,
+                shape = RoundedCornerShape(50) // pill-shaped bar, matches app's rounded style
             ) {
-                Text(
-                    text = "ادامه از ${formatTime(resumePositionMs)}",
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontManager.loadFontFamily(context, fontSettings.fontType),
+                Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable {
-                            try {
-                                exoPlayer?.seekTo(resumePositionMs)
-                                currentPosition = resumePositionMs
-                            } catch (e: Exception) {
-                                // Ignore seek errors
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "ادامه از ${formatTime(resumePositionMs)}",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontManager.loadFontFamily(context, fontSettings.fontType),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(50))
+                            .clickable {
+                                try {
+                                    exoPlayer?.seekTo(resumePositionMs)
+                                    currentPosition = resumePositionMs
+                                } catch (e: Exception) {
+                                    // Ignore seek errors
+                                }
+                                showResumePrompt = false
+                                isPlaying = true
                             }
+                            .padding(vertical = 6.dp, horizontal = 6.dp)
+                    )
+
+                    Text(
+                        text = "$resumePromptSecondsLeft",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontFamily = FontManager.loadFontFamily(context, fontSettings.fontType),
+                        modifier = Modifier.padding(horizontal = 6.dp)
+                    )
+
+                    IconButton(
+                        onClick = {
+                            // Start from the beginning
                             showResumePrompt = false
                             isPlaying = true
-                        }
-                        .padding(vertical = 8.dp, horizontal = 4.dp)
-                )
-                
-                Text(
-                    text = "شروع از ابتدا در ${resumePromptSecondsLeft}",
-                    color = Color.White.copy(alpha = 0.7f),
-                    style = MaterialTheme.typography.bodySmall,
-                    fontFamily = FontManager.loadFontFamily(context, fontSettings.fontType),
-                    modifier = Modifier.padding(end = 8.dp)
-                )
-                
-                IconButton(
-                    onClick = {
-                        // Start from the beginning
-                        showResumePrompt = false
-                        isPlaying = true
-                    },
-                    modifier = Modifier
-                        .size(36.dp)
-                        .background(
-                            color = Color.White.copy(alpha = 0.15f),
-                            shape = androidx.compose.foundation.shape.CircleShape
+                        },
+                        modifier = Modifier
+                            .size(28.dp)
+                            .background(
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                                shape = androidx.compose.foundation.shape.CircleShape
+                            )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "شروع از ابتدا",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
                         )
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "شروع از ابتدا",
-                        tint = Color.White,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    }
                 }
             }
         }
