@@ -10,6 +10,7 @@ import com.pira.ccloud.data.model.SubtitleSettings
 import com.pira.ccloud.data.model.VideoPlayerSettings
 import com.pira.ccloud.data.model.FontSettings
 import com.pira.ccloud.data.model.WatchedEpisode
+import com.pira.ccloud.data.model.PlaybackProgress
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
@@ -656,6 +657,96 @@ object StorageUtils {
             Log.d(TAG, "All watched episodes cleared")
         } catch (e: Exception) {
             Log.e(TAG, "Error clearing all watched episodes", e)
+        }
+    }
+
+    // Playback progress functions - used to resume video/episode playback from where the user left off
+    /**
+     * Builds a stable key identifying a piece of content for resume-playback purposes.
+     * Episodes use their series/season/episode ids; movies (no such ids) fall back to the video URL.
+     */
+    fun buildPlaybackProgressKey(videoUrl: String, seriesId: Int?, seasonId: Int?, episodeId: Int?): String {
+        return if (seriesId != null && seasonId != null && episodeId != null) {
+            "series_${seriesId}_season_${seasonId}_episode_${episodeId}"
+        } else {
+            "movie_$videoUrl"
+        }
+    }
+
+    fun savePlaybackProgress(context: Context, progress: PlaybackProgress) {
+        try {
+            val allProgress = loadAllPlaybackProgress(context).toMutableList()
+
+            // Remove any existing entry for the same content
+            allProgress.removeAll { it.key == progress.key }
+            allProgress.add(progress)
+
+            val jsonString = Json.encodeToString(allProgress)
+            val file = File(context.filesDir, "playback_progress.json")
+            file.writeText(jsonString)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving playback progress", e)
+        }
+    }
+
+    fun getPlaybackProgress(context: Context, key: String): PlaybackProgress? {
+        return try {
+            loadAllPlaybackProgress(context).firstOrNull { it.key == key }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting playback progress", e)
+            null
+        }
+    }
+
+    fun removePlaybackProgress(context: Context, key: String) {
+        try {
+            val allProgress = loadAllPlaybackProgress(context).toMutableList()
+            allProgress.removeAll { it.key == key }
+
+            val jsonString = Json.encodeToString(allProgress)
+            val file = File(context.filesDir, "playback_progress.json")
+            file.writeText(jsonString)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error removing playback progress", e)
+        }
+    }
+
+    fun loadAllPlaybackProgress(context: Context): List<PlaybackProgress> {
+        return try {
+            val file = File(context.filesDir, "playback_progress.json")
+            if (file.exists()) {
+                val jsonString = file.readText()
+                Json.decodeFromString<List<PlaybackProgress>>(jsonString)
+            } else {
+                emptyList()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading all playback progress", e)
+            emptyList()
+        }
+    }
+
+    // Bulk save - used by BackupUtils when importing a backup
+    fun saveAllPlaybackProgress(context: Context, allProgress: List<PlaybackProgress>) {
+        try {
+            val jsonString = Json.encodeToString(allProgress)
+            val file = File(context.filesDir, "playback_progress.json")
+            file.writeText(jsonString)
+            Log.d(TAG, "Saved ${allProgress.size} playback progress entries (bulk)")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error saving all playback progress", e)
+        }
+    }
+
+    fun clearAllPlaybackProgress(context: Context) {
+        try {
+            val file = File(context.filesDir, "playback_progress.json")
+            if (file.exists()) {
+                file.delete()
+            }
+            Log.d(TAG, "All playback progress cleared")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error clearing all playback progress", e)
         }
     }
 }

@@ -61,3 +61,19 @@ data class WatchedEpisode(
     val episodeId: Int,
     val watchedAt: Long = System.currentTimeMillis()
 )
+
+/**
+ * Stores how far the user got into a specific video (movie or episode) so that
+ * playback can offer to resume from that point next time it's opened.
+ *
+ * [key] uniquely identifies the piece of content:
+ *  - For series episodes: "series_{seriesId}_season_{seasonId}_episode_{episodeId}"
+ *  - For movies (no series/season/episode ids available): the raw video URL
+ */
+@Serializable
+data class PlaybackProgress(
+    val key: String,
+    val positionMs: Long,
+    val durationMs: Long,
+    val updatedAt: Long = System.currentTimeMillis()
+)

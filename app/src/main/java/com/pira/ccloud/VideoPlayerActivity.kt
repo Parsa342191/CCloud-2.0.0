@@ -45,6 +45,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.BrightnessMedium
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Forward
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -99,6 +100,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+// Minimum saved position (ms) before we bother offering to resume playback from it
+private const val MIN_RESUMABLE_POSITION_MS = 5000L
+
+// How long the "resume or start over" prompt stays on screen before defaulting to start-over
+private const val RESUME_PROMPT_TIMEOUT_SECONDS = 5
 
 // Extension function to set subtitle text size on PlayerView
 fun PlayerView.setSubtitleTextSize(spSize: Float) {
@@ -340,7 +347,33 @@ fun VideoPlayerScreen(
     onPlayerReady: (ExoPlayer) -> Unit
 ) {
     val context = LocalContext.current
-    var isPlaying by remember { mutableStateOf(true) }
+
+    // Resume playback support: look up any saved position for this exact content
+    // (episode identified by series/season/episode ids, movie identified by its URL)
+    val progressKey = remember(videoUrl, seriesId, seasonId, episodeId) {
+        StorageUtils.buildPlaybackProgressKey(videoUrl, seriesId, seasonId, episodeId)
+    }
+    val resumePositionMs = remember(progressKey) {
+        try {
+            val saved = StorageUtils.getPlaybackProgress(context, progressKey)
+            if (saved != null &&
+                saved.durationMs > 0 &&
+                saved.positionMs > MIN_RESUMABLE_POSITION_MS &&
+                saved.positionMs < (saved.durationMs * 0.95).toLong()
+            ) {
+                saved.positionMs
+            } else {
+                0L
+            }
+        } catch (e: Exception) {
+            0L
+        }
+    }
+    // Show the resume/start-over prompt only when there is something to resume from
+    var showResumePrompt by remember { mutableStateOf(resumePositionMs > 0L) }
+    var resumePromptSecondsLeft by remember { mutableStateOf(RESUME_PROMPT_TIMEOUT_SECONDS) }
+
+    var isPlaying by remember { mutableStateOf(resumePositionMs <= 0L) }
     var currentPosition by remember { mutableStateOf(0L) }
     var duration by remember { mutableStateOf(0L) }
     var showControls by remember { mutableStateOf(true) }
@@ -673,9 +706,86 @@ fun VideoPlayerScreen(
         }
     }
     
-    // Clean up player
+    // Resume prompt countdown: if the user doesn't choose "continue" in time,
+    // default to playing from the beginning.
+    LaunchedEffect(showResumePrompt) {
+        if (!showResumePrompt) return@LaunchedEffect
+        try {
+            resumePromptSecondsLeft = RESUME_PROMPT_TIMEOUT_SECONDS
+            while (resumePromptSecondsLeft > 0) {
+                delay(1000)
+                resumePromptSecondsLeft -= 1
+            }
+            if (showResumePrompt) {
+                // Timed out without a choice - start from the beginning
+                showResumePrompt = false
+                isPlaying = true
+            }
+        } catch (e: Exception) {
+            // Ignore countdown errors
+        }
+    }
+    
+    // Periodically persist playback progress so it can be resumed later
+    LaunchedEffect(exoPlayer) {
+        if (exoPlayer == null) return@LaunchedEffect
+        try {
+            while (true) {
+                delay(5000) // Save progress every 5 seconds
+                try {
+                    exoPlayer?.let { player ->
+                        val pos = player.currentPosition
+                        val dur = player.duration
+                        if (dur > 0 && pos > 0) {
+                            if (pos >= (dur * 0.95).toLong()) {
+                                // Practically finished watching - no need to offer resume next time
+                                StorageUtils.removePlaybackProgress(context, progressKey)
+                            } else {
+                                StorageUtils.savePlaybackProgress(
+                                    context,
+                                    com.pira.ccloud.data.model.PlaybackProgress(
+                                        key = progressKey,
+                                        positionMs = pos,
+                                        durationMs = dur
+                                    )
+                                )
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Ignore progress save errors
+                }
+            }
+        } catch (e: Exception) {
+            // Ignore coroutine errors
+        }
+    }
+    
+    // Clean up player, saving the final playback position first
     DisposableEffect(exoPlayer) {
         onDispose {
+            try {
+                exoPlayer?.let { player ->
+                    val pos = player.currentPosition
+                    val dur = player.duration
+                    if (dur > 0 && pos > 0) {
+                        if (pos >= (dur * 0.95).toLong()) {
+                            StorageUtils.removePlaybackProgress(context, progressKey)
+                        } else {
+                            StorageUtils.savePlaybackProgress(
+                                context,
+                                com.pira.ccloud.data.model.PlaybackProgress(
+                                    key = progressKey,
+                                    positionMs = pos,
+                                    durationMs = dur
+                                )
+                            )
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // Ignore progress save errors
+            }
             try {
                 exoPlayer?.release()
             } catch (e: Exception) {
@@ -692,6 +802,9 @@ fun VideoPlayerScreen(
                 try {
                     detectTapGestures(
                         onDoubleTap = { offset -> 
+                            // Ignore seek gestures while the resume/start-over prompt is up
+                            if (showResumePrompt) return@detectTapGestures
+                            
                             // Calculate if the tap is on the left or right side
                             val screenWidth = size.width
                             val tapX = offset.x
@@ -755,6 +868,9 @@ fun VideoPlayerScreen(
                             }
                         },
                         onTap = {
+                            // Ignore control-toggle taps while the resume/start-over prompt is up
+                            if (showResumePrompt) return@detectTapGestures
+                            
                             showControls = !showControls
                             // Reset the auto-hide timer when controls are shown
                             if (showControls && isPlaying) {
@@ -875,8 +991,8 @@ fun VideoPlayerScreen(
             }
         }
         
-        // Custom controls overlay
-        if (showControls) {
+        // Custom controls overlay (hidden while the resume prompt is up, so the two don't overlap)
+        if (showControls && !showResumePrompt) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -1123,6 +1239,74 @@ fun VideoPlayerScreen(
                             fontFamily = FontManager.loadFontFamily(context, fontSettings.fontType)
                         )
                     }
+                }
+            }
+        }
+        
+        // Resume playback prompt - appears briefly at the top of the player when there is
+        // a saved position for this content. If the user picks "continue", playback jumps
+        // to that position; otherwise (including a timeout) it plays from the beginning.
+        if (showResumePrompt) {
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(Color.Black.copy(alpha = 0.85f))
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "ادامه از ${formatTime(resumePositionMs)}",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontManager.loadFontFamily(context, fontSettings.fontType),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable {
+                            try {
+                                exoPlayer?.seekTo(resumePositionMs)
+                                currentPosition = resumePositionMs
+                            } catch (e: Exception) {
+                                // Ignore seek errors
+                            }
+                            showResumePrompt = false
+                            isPlaying = true
+                        }
+                        .padding(vertical = 8.dp, horizontal = 4.dp)
+                )
+                
+                Text(
+                    text = "شروع از ابتدا در ${resumePromptSecondsLeft}",
+                    color = Color.White.copy(alpha = 0.7f),
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontManager.loadFontFamily(context, fontSettings.fontType),
+                    modifier = Modifier.padding(end = 8.dp)
+                )
+                
+                IconButton(
+                    onClick = {
+                        // Start from the beginning
+                        showResumePrompt = false
+                        isPlaying = true
+                    },
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(
+                            color = Color.White.copy(alpha = 0.15f),
+                            shape = androidx.compose.foundation.shape.CircleShape
+                        )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "شروع از ابتدا",
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
         }

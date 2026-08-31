@@ -5,6 +5,7 @@ import android.net.Uri
 import android.util.Log
 import com.pira.ccloud.data.model.FavoriteGroup
 import com.pira.ccloud.data.model.FavoriteItem
+import com.pira.ccloud.data.model.PlaybackProgress
 import com.pira.ccloud.data.model.WatchedEpisode
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -20,7 +21,8 @@ data class BackupData(
     val exportedAt: Long = System.currentTimeMillis(),
     val favorites: List<FavoriteItem> = emptyList(),
     val favoriteGroups: List<FavoriteGroup> = emptyList(),
-    val watchedEpisodes: List<WatchedEpisode> = emptyList()
+    val watchedEpisodes: List<WatchedEpisode> = emptyList(),
+    val playbackProgress: List<PlaybackProgress> = emptyList()
 )
 
 sealed class BackupResult {
@@ -45,7 +47,8 @@ object BackupUtils {
         val backup = BackupData(
             favorites = StorageUtils.loadAllFavorites(context),
             favoriteGroups = StorageUtils.loadAllFavoriteGroups(context),
-            watchedEpisodes = StorageUtils.loadAllWatchedEpisodes(context)
+            watchedEpisodes = StorageUtils.loadAllWatchedEpisodes(context),
+            playbackProgress = StorageUtils.loadAllPlaybackProgress(context)
         )
         return json.encodeToString(backup)
     }
@@ -112,8 +115,16 @@ object BackupUtils {
             }
             StorageUtils.saveAllWatchedEpisodes(context, currentWatched)
 
-            Log.d(TAG, "Backup imported successfully: ${backup.favorites.size} favorites, ${backup.favoriteGroups.size} groups, ${backup.watchedEpisodes.size} watched episodes")
-            BackupResult.Success("Restored ${backup.favorites.size} favorites, ${backup.favoriteGroups.size} groups, ${backup.watchedEpisodes.size} watch history entries")
+            // Playback progress (resume positions for movies/episodes)
+            val currentProgress = if (replaceExisting) mutableListOf() else StorageUtils.loadAllPlaybackProgress(context).toMutableList()
+            backup.playbackProgress.forEach { imported ->
+                currentProgress.removeAll { it.key == imported.key }
+                currentProgress.add(imported)
+            }
+            StorageUtils.saveAllPlaybackProgress(context, currentProgress)
+
+            Log.d(TAG, "Backup imported successfully: ${backup.favorites.size} favorites, ${backup.favoriteGroups.size} groups, ${backup.watchedEpisodes.size} watched episodes, ${backup.playbackProgress.size} playback progress entries")
+            BackupResult.Success("Restored ${backup.favorites.size} favorites, ${backup.favoriteGroups.size} groups, ${backup.watchedEpisodes.size} watch history entries, ${backup.playbackProgress.size} resume points")
         } catch (e: Exception) {
             Log.e(TAG, "Error importing backup", e)
             BackupResult.Error("Import failed: ${e.message}")
