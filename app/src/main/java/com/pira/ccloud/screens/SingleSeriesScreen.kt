@@ -6,6 +6,8 @@ import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,6 +24,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -51,6 +54,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -76,6 +81,8 @@ import androidx.compose.material.icons.filled.Check
 import com.pira.ccloud.ui.series.SeasonsViewModel
 import com.pira.ccloud.utils.DownloadUtils
 import com.pira.ccloud.utils.StorageUtils
+import com.pira.ccloud.utils.DeviceUtils
+import com.pira.ccloud.ui.theme.tvFocusIndication
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -417,6 +424,22 @@ fun SeriesDetailsContent(
     val layoutDirection = LocalLayoutDirection.current
     var showEpisodeImageDialog by remember { mutableStateOf(false) }
     var episodeImageUrl by remember { mutableStateOf("") }
+    val isTv = remember { DeviceUtils.isTv(context) }
+    val firstSeasonTabFocusRequester = remember { FocusRequester() }
+    var initialSeasonTabFocusRequested by remember { mutableStateOf(false) }
+
+    // On TV, give the season tabs D-pad focus as soon as they're available,
+    // so the remote can start browsing seasons/episodes right away.
+    LaunchedEffect(seasonsViewModel.seasons.isNotEmpty()) {
+        if (isTv && seasonsViewModel.seasons.isNotEmpty() && !initialSeasonTabFocusRequested) {
+            initialSeasonTabFocusRequested = true
+            try {
+                firstSeasonTabFocusRequester.requestFocus()
+            } catch (e: Exception) {
+                // Ignore - view may not be laid out yet
+            }
+        }
+    }
     
     LazyColumn(
         modifier = modifier
@@ -775,9 +798,12 @@ fun SeriesDetailsContent(
                 ) {
                     items(seasonsViewModel.seasons.size) { index ->
                         val season = seasonsViewModel.seasons[index]
+                        val seasonInteractionSource = remember { MutableInteractionSource() }
                         Card(
                             modifier = Modifier
-                                .clickable { onSeasonSelected(index) },
+                                .then(if (index == 0) Modifier.focusRequester(firstSeasonTabFocusRequester) else Modifier)
+                                .tvFocusIndication(seasonInteractionSource, shape = RoundedCornerShape(12.dp))
+                                .clickable(interactionSource = seasonInteractionSource, indication = LocalIndication.current) { onSeasonSelected(index) },
                             colors = CardDefaults.cardColors(
                                 containerColor = if (selectedSeasonIndex == index) 
                                     MaterialTheme.colorScheme.primary 
@@ -994,10 +1020,13 @@ fun EpisodeItem(
             ) {
                 // Download button
                 if (episode.sources.isNotEmpty()) {
+                    val downloadInteractionSource = remember { MutableInteractionSource() }
                     IconButton(
                         onClick = { onDownloadClick() },
+                        interactionSource = downloadInteractionSource,
                         modifier = Modifier
                             .size(36.dp)
+                            .tvFocusIndication(downloadInteractionSource, shape = CircleShape)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Download,
@@ -1011,10 +1040,13 @@ fun EpisodeItem(
                 Spacer(modifier = Modifier.width(8.dp))
                 
                 // Play button
+                val playInteractionSource = remember { MutableInteractionSource() }
                 IconButton(
                     onClick = { onPlayClick() },
+                    interactionSource = playInteractionSource,
                     modifier = Modifier
                         .size(36.dp)
+                        .tvFocusIndication(playInteractionSource, shape = CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Default.PlayArrow,

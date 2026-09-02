@@ -3,6 +3,9 @@ package com.pira.ccloud.navigation
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +26,7 @@ import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
@@ -59,8 +63,10 @@ fun SidebarNavigation(navController: NavController) {
             ) {
                 AppScreens.screens.filter { it.showSidebar }.forEach { screen ->
                     val isSelected = currentRoute == screen.route
+                    val itemInteractionSource = remember { MutableInteractionSource() }
+                    val isFocused by itemInteractionSource.collectIsFocusedAsState()
                     val scale by animateFloatAsState(
-                        targetValue = if (isSelected) 1.1f else 1f,
+                        targetValue = if (isSelected) 1.1f else if (isFocused) 1.15f else 1f,
                         animationSpec = tween(durationMillis = 200),
                         label = "scale"
                     )
@@ -92,7 +98,18 @@ fun SidebarNavigation(navController: NavController) {
                                 Box(
                                     modifier = Modifier
                                         .size(64.dp) // Increased size for better TV experience
-                                        .scale(scale),
+                                        .scale(scale)
+                                        .then(
+                                            if (isFocused) {
+                                                Modifier.border(
+                                                    width = 2.dp,
+                                                    color = androidx.compose.material3.MaterialTheme.colorScheme.primary,
+                                                    shape = CircleShape
+                                                )
+                                            } else {
+                                                Modifier
+                                            }
+                                        ),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (isSelected) {
@@ -121,6 +138,7 @@ fun SidebarNavigation(navController: NavController) {
                         },
                         label = null, // We're using custom label in icon
                         selected = isSelected,
+                        interactionSource = itemInteractionSource,
                         onClick = {
                             // Only navigate if we're not already on the selected screen
                             if (currentRoute != screen.route) {

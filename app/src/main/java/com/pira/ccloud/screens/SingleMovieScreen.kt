@@ -6,6 +6,8 @@ import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,6 +52,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -69,6 +73,8 @@ import com.pira.ccloud.data.model.Movie
 import com.pira.ccloud.data.model.Source
 import com.pira.ccloud.utils.DownloadUtils
 import com.pira.ccloud.utils.StorageUtils
+import com.pira.ccloud.utils.DeviceUtils
+import com.pira.ccloud.ui.theme.tvFocusIndication
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -133,6 +139,22 @@ fun MovieDetailsContent(
     val layoutDirection = LocalLayoutDirection.current
     var selectedSource by remember { mutableStateOf<Source?>(null) }
     var showSourceDialog by remember { mutableStateOf(false) }
+    val isTv = remember { DeviceUtils.isTv(context) }
+    val firstSourceFocusRequester = remember { FocusRequester() }
+    var initialSourceFocusRequested by remember { mutableStateOf(false) }
+
+    // On TV, give the first quality/source option D-pad focus as soon as it's
+    // available, so the remote can start selecting a source right away.
+    LaunchedEffect(movie.sources.isNotEmpty()) {
+        if (isTv && movie.sources.isNotEmpty() && !initialSourceFocusRequested) {
+            initialSourceFocusRequested = true
+            try {
+                firstSourceFocusRequester.requestFocus()
+            } catch (e: Exception) {
+                // Ignore - view may not be laid out yet
+            }
+        }
+    }
     
     // Source selection dialog
     if (showSourceDialog && selectedSource != null) {
@@ -347,6 +369,7 @@ fun MovieDetailsContent(
                 )
             }
             
+            val favoriteInteractionSource = remember { MutableInteractionSource() }
             IconButton(
                 onClick = {
                     if (isFavorite) {
@@ -375,9 +398,11 @@ fun MovieDetailsContent(
                         android.widget.Toast.makeText(context, "Added to favorites", android.widget.Toast.LENGTH_SHORT).show()
                     }
                 },
+                interactionSource = favoriteInteractionSource,
                 modifier = Modifier
                     .padding(16.dp)
                     .align(Alignment.TopEnd)
+                    .tvFocusIndication(favoriteInteractionSource, shape = CircleShape)
             ) {
                 Icon(
                     imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
@@ -472,11 +497,14 @@ fun MovieDetailsContent(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.padding(start = 16.dp, end = 16.dp)
             ) {
-                movie.sources.forEach { source ->
+                movie.sources.forEachIndexed { index, source ->
+                    val sourceInteractionSource = remember { MutableInteractionSource() }
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable {
+                            .then(if (index == 0) Modifier.focusRequester(firstSourceFocusRequester) else Modifier)
+                            .tvFocusIndication(sourceInteractionSource)
+                            .clickable(interactionSource = sourceInteractionSource, indication = LocalIndication.current) {
                                 selectedSource = source
                                 showSourceDialog = true
                             },

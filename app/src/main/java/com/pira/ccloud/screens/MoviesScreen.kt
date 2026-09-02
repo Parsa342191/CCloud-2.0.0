@@ -13,6 +13,10 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -70,6 +74,7 @@ import com.pira.ccloud.data.model.Movie
 import com.pira.ccloud.ui.movies.MoviesViewModel
 import com.pira.ccloud.utils.DeviceUtils
 import com.pira.ccloud.utils.StorageUtils
+import com.pira.ccloud.ui.theme.tvFocusIndication
 
 @Composable
 fun MoviesScreen(
@@ -283,6 +288,22 @@ fun MovieGrid(
 ) {
     val moviesList = movies.toList()
     val context = LocalContext.current
+    val isTv = remember { DeviceUtils.isTv(context) }
+    val firstItemFocusRequester = remember { FocusRequester() }
+    var initialFocusRequested by remember { mutableStateOf(false) }
+    
+    // On TV, give the first poster D-pad focus as soon as the grid has content,
+    // so the remote works right away without an extra manual move first.
+    LaunchedEffect(moviesList.isNotEmpty()) {
+        if (isTv && moviesList.isNotEmpty() && !initialFocusRequested) {
+            initialFocusRequested = true
+            try {
+                firstItemFocusRequester.requestFocus()
+            } catch (e: Exception) {
+                // Ignore - view may not be laid out yet
+            }
+        }
+    }
     
     val columns = DeviceUtils.getGridColumns(LocalContext.current.resources)
     LazyVerticalGrid(
@@ -295,6 +316,7 @@ fun MovieGrid(
         itemsIndexed(moviesList) { index, movie ->
             MovieItem(
                 movie = movie,
+                modifier = if (index == 0) Modifier.focusRequester(firstItemFocusRequester) else Modifier,
                 onClick = {
                     // Save movie to storage
                     StorageUtils.saveMovieToFile(context, movie)
@@ -381,13 +403,16 @@ fun ModernCircularProgressIndicator() {
 @Composable
 fun MovieItem(
     movie: Movie,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(310.dp) // Fixed height for all cards
-            .clickable { onClick() },
+            .tvFocusIndication(interactionSource)
+            .clickable(interactionSource = interactionSource, indication = LocalIndication.current) { onClick() },
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(

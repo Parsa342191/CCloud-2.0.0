@@ -10,6 +10,8 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,6 +28,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -76,6 +79,7 @@ import com.pira.ccloud.data.model.Poster
 import com.pira.ccloud.ui.search.SearchViewModel
 import com.pira.ccloud.utils.DeviceUtils
 import com.pira.ccloud.utils.StorageUtils
+import com.pira.ccloud.ui.theme.tvFocusIndication
 
 @Composable
 fun SearchScreen(
@@ -302,9 +306,12 @@ fun CountryStoryItem(
     country: com.pira.ccloud.data.model.Country,
     onClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable { onClick() }
+        modifier = Modifier
+            .tvFocusIndication(interactionSource, shape = CircleShape)
+            .clickable(interactionSource = interactionSource, indication = LocalIndication.current) { onClick() }
     ) {
         Box(
             modifier = Modifier
@@ -346,6 +353,21 @@ fun SearchResultsGrid(
     navController: NavController?,
     context: Context
 ) {
+    val isTv = remember { DeviceUtils.isTv(context) }
+    val firstItemFocusRequester = remember { FocusRequester() }
+    var initialFocusRequested by remember { mutableStateOf(false) }
+    
+    LaunchedEffect(posters.isNotEmpty()) {
+        if (isTv && posters.isNotEmpty() && !initialFocusRequested) {
+            initialFocusRequested = true
+            try {
+                firstItemFocusRequester.requestFocus()
+            } catch (e: Exception) {
+                // Ignore - view may not be laid out yet
+            }
+        }
+    }
+    
     val columns = DeviceUtils.getGridColumns(LocalContext.current.resources)
     LazyVerticalGrid(
         columns = GridCells.Fixed(columns),
@@ -354,9 +376,10 @@ fun SearchResultsGrid(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        items(posters) { poster ->
+        itemsIndexed(posters) { index, poster ->
             PosterItem(
                 poster = poster,
+                modifier = if (index == 0) Modifier.focusRequester(firstItemFocusRequester) else Modifier,
                 onClick = {
                     if (poster.isMovie()) {
                         // Save movie to storage and navigate to single movie screen
@@ -376,13 +399,16 @@ fun SearchResultsGrid(
 @Composable
 fun PosterItem(
     poster: Poster,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(310.dp) // Fixed height for all cards
-            .clickable { onClick() },
+            .tvFocusIndication(interactionSource)
+            .clickable(interactionSource = interactionSource, indication = LocalIndication.current) { onClick() },
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(

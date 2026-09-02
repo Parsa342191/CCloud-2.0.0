@@ -1,6 +1,8 @@
 package com.pira.ccloud.components
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.pira.ccloud.data.model.FilterType
 import com.pira.ccloud.data.model.Genre
+import com.pira.ccloud.ui.theme.tvFocusIndication
 
 @Composable
 fun GenreFilterSection(
@@ -81,12 +84,14 @@ fun FilterTypeSelector(
     onFilterTypeSelected: (FilterType) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
     
     Card(
         modifier = Modifier
             .width(150.dp)
             .height(36.dp)
-            .clickable { expanded = true },
+            .tvFocusIndication(interactionSource, shape = RoundedCornerShape(18.dp))
+            .clickable(interactionSource = interactionSource, indication = LocalIndication.current) { expanded = true },
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.primary
@@ -157,6 +162,7 @@ fun GenreSelector(
     onGenreSelected: (Int) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
     
     // Find the selected genre title
     val selectedGenreTitle = if (selectedGenreId == 0) {
@@ -169,7 +175,8 @@ fun GenreSelector(
         modifier = Modifier
             .width(150.dp)
             .height(36.dp)
-            .clickable { expanded = true },
+            .tvFocusIndication(interactionSource, shape = RoundedCornerShape(18.dp))
+            .clickable(interactionSource = interactionSource, indication = LocalIndication.current) { expanded = true },
         shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.secondary

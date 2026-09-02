@@ -144,11 +144,14 @@ fun MainScreen(
         }
     ) { innerPadding ->
         if (isTv) {
-            // TV layout with sidebar navigation
+            // TV layout with sidebar navigation.
+            // Extra outer padding keeps content inside the overscan-safe area on TV screens,
+            // where content too close to the physical screen edge can get clipped.
             Row(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
+                    .padding(horizontal = 24.dp, vertical = 16.dp)
             ) {
                 // Sidebar navigation for TV
                 SidebarNavigation(navController)
