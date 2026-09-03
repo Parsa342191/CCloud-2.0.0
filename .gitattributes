@@ -2,3 +2,14 @@
 *.sh text eol=lf
 gradlew text eol=lf
 gradle/wrapper/gradle-wrapper.properties text eol=lf
+
+# Binary files must never be touched by line-ending conversion, or the
+# Gradle Wrapper checksum validation (and the build) will fail.
+gradle/wrapper/gradle-wrapper.jar binary
+*.jar binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ttf binary
+*.otf binary
