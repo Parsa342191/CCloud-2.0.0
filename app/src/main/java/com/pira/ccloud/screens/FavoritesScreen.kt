@@ -11,6 +11,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -552,7 +553,7 @@ fun FavoritesScreen(navController: NavController) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
-                    .focusable()
+                    .focusGroup()
                     .focusRequester(groupCardFocusRequester)
                     .focusProperties {
                         down = favoritesCardFocusRequester
@@ -754,7 +755,7 @@ fun FavoritesScreen(navController: NavController) {
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                         .weight(1f)
-                        .focusable()
+                        .focusGroup()
                         .focusRequester(favoritesCardFocusRequester)
                         .focusProperties {
                             up = groupCardFocusRequester

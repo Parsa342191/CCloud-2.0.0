@@ -1,32 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Android TV banner (320x180dp) shown in the Leanback launcher grid -->
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="320dp"
-    android:height="180dp"
-    android:viewportWidth="320"
-    android:viewportHeight="180">
-
-    <!-- Background -->
-    <path
-        android:fillColor="#121212"
-        android:pathData="M0,0h320v180h-320z" />
-
-    <!-- Accent gradient bar -->
-    <path
-        android:fillColor="#6650A4"
-        android:pathData="M0,0h320v8h-320z" />
-
-    <!-- Play button badge -->
-    <path
-        android:fillColor="#6650A4"
-        android:pathData="M160,55 m-38,0 a38,38 0,1 1,76 0 a38,38 0,1 1,-76 0" />
-    <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M147,38 L147,72 L178,55 Z" />
-
-    <!-- Bottom accent line -->
-    <path
-        android:fillColor="#6650A4"
-        android:pathData="M0,172h320v8h-320z" />
-
-</vector>
+<!-- Android TV banner (320x180dp) shown in the Leanback launcher grid.
+     Uses the app's real launcher icon (mipmap/ic_launcher) centered on a
+     dark background, instead of a generic placeholder. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:width="320dp" android:height="180dp">
+        <shape android:shape="rectangle">
+            <solid android:color="#0F0F14" />
+        </shape>
+    </item>
+    <item
+        android:width="110dp"
+        android:height="110dp"
+        android:gravity="center"
+        android:drawable="@mipmap/ic_launcher" />
+</layer-list>
