@@ -171,7 +171,7 @@ fun SettingsScreen(
     // On TV, give the first settings card D-pad focus as soon as the screen appears -
     // the screen itself must NOT be a focus target (that traps focus on an invisible
     // container instead of letting it reach any of the actual option cards below).
-    LaunchedEffect(isTv) {
+    androidx.compose.runtime.LaunchedEffect(isTv) {
         if (isTv) {
             try {
                 themeCardFocusRequester.requestFocus()
