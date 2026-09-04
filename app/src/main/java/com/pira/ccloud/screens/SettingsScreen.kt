@@ -1056,12 +1056,7 @@ fun SettingsScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .focusGroup()
-                        .focusRequester(backupCardFocusRequester)
-                        .focusProperties {
-                            up = updateCardFocusRequester
-                            down = resetCardFocusRequester
-                        },
+                        .focusGroup(),
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -1097,7 +1092,7 @@ fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            val exportFocusRequester = remember { FocusRequester() }
+                            val exportFocusRequester = backupCardFocusRequester
                             val importFocusRequester = remember { FocusRequester() }
 
                             Row(
@@ -1112,6 +1107,11 @@ fun SettingsScreen(
                                     }
                                     .focusable()
                                     .focusRequester(exportFocusRequester)
+                                    .focusProperties {
+                                        up = updateCardFocusRequester
+                                        down = resetCardFocusRequester
+                                        right = importFocusRequester
+                                    }
                                     .onKeyEvent { keyEvent ->
                                         when (keyEvent.key) {
                                             Key.Enter, Key.Spacebar -> {
@@ -1150,6 +1150,11 @@ fun SettingsScreen(
                                     }
                                     .focusable()
                                     .focusRequester(importFocusRequester)
+                                    .focusProperties {
+                                        up = updateCardFocusRequester
+                                        down = resetCardFocusRequester
+                                        left = exportFocusRequester
+                                    }
                                     .onKeyEvent { keyEvent ->
                                         when (keyEvent.key) {
                                             Key.Enter, Key.Spacebar -> {

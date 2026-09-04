@@ -59,6 +59,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -110,10 +111,13 @@ fun SearchScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .focusRequester(focusRequester)
-                .clickable { 
-                    // Ensure keyboard opens when clicking on the TextField on TV
-                    focusRequester.requestFocus()
-                    keyboardController?.show()
+                .onFocusChanged { focusState ->
+                    // Explicitly show the soft keyboard whenever this field gains focus -
+                    // on Android TV, focus alone (via D-pad or auto-focus) doesn't reliably
+                    // trigger the IME the way a touch tap does on phones.
+                    if (focusState.isFocused) {
+                        keyboardController?.show()
+                    }
                 },
             placeholder = { 
                 Text(
