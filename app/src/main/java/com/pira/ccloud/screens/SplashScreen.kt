@@ -40,11 +40,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.pira.ccloud.BuildConfig
 import com.pira.ccloud.R
 import com.pira.ccloud.utils.StorageUtils
+import com.pira.ccloud.utils.DeviceUtils
 import kotlinx.coroutines.delay
 
 @Composable
@@ -130,6 +133,23 @@ fun WelcomeSliderScreen(
     onFinished: () -> Unit,
     backgroundColor: Color
 ) {
+    val context = LocalContext.current
+    val isTv = remember { DeviceUtils.isTv(context) }
+    val nextButtonFocusRequester = remember { FocusRequester() }
+
+    // On TV there's no touch input, so the "Next" button needs D-pad focus
+    // as soon as the screen appears (and again each time the slide changes),
+    // otherwise the remote has no starting point to navigate from.
+    LaunchedEffect(currentSlide) {
+        if (isTv) {
+            try {
+                nextButtonFocusRequester.requestFocus()
+            } catch (e: Exception) {
+                // Ignore - view may not be laid out yet
+            }
+        }
+    }
+
     // Welcome slides data
     val slides = listOf(
         SlideData(R.drawable.s1, "Welcome to CCloud"),
@@ -213,6 +233,7 @@ fun WelcomeSliderScreen(
                             onFinished()
                         }
                     },
+                    modifier = Modifier.focusRequester(nextButtonFocusRequester),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Yellow
                     ),

@@ -10,9 +10,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.pira.ccloud.data.model.Source
+import com.pira.ccloud.utils.DeviceUtils
 
 @Composable
 fun DownloadOptionsDialog(
@@ -25,6 +31,23 @@ fun DownloadOptionsDialog(
     onOpenInMXPlayer: () -> Unit,
     onOpenInKMPlayer: () -> Unit
 ) {
+    val context = LocalContext.current
+    val isTv = remember { DeviceUtils.isTv(context) }
+    val firstOptionFocusRequester = remember { FocusRequester() }
+
+    // On TV, this dialog has no touch input to fall back on, so give the
+    // first option D-pad focus as soon as it opens - otherwise the remote
+    // has no starting point and none of the buttons can be reached.
+    LaunchedEffect(Unit) {
+        if (isTv) {
+            try {
+                firstOptionFocusRequester.requestFocus()
+            } catch (e: Exception) {
+                // Ignore - dialog may not be laid out yet
+            }
+        }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -59,7 +82,9 @@ fun DownloadOptionsDialog(
                         onCopyLink()
                         onDismiss()
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(firstOptionFocusRequester),
                     shape = RoundedCornerShape(16.dp),
                     colors = androidx.compose.material3.ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
