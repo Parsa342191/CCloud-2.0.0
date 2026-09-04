@@ -16,6 +16,8 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.focusGroup
 import androidx.compose.foundation.layout.Arrangement
@@ -82,6 +84,7 @@ import com.pira.ccloud.data.model.WatchedEpisode
 import com.pira.ccloud.utils.BackupUtils
 import com.pira.ccloud.utils.BackupResult
 import com.pira.ccloud.utils.DeviceUtils
+import com.pira.ccloud.ui.theme.tvFocusIndication
 import com.pira.ccloud.ui.theme.ThemeMode
 import com.pira.ccloud.ui.theme.ThemeSettings
 import com.pira.ccloud.ui.theme.ThemeManager
@@ -391,28 +394,29 @@ fun SettingsScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { isExpanded = !isExpanded }
-                        .focusable()
-                        .focusRequester(themeCardFocusRequester)
-                        .focusProperties {
-                            down = videoCardFocusRequester
-                        }
-                        .onKeyEvent { keyEvent ->
-                            when (keyEvent.key) {
-                                Key.Enter, Key.Spacebar -> {
-                                    isExpanded = !isExpanded
-                                    true // Handled
-                                }
-                                else -> false // Let default handling occur
-                            }
-                        },
+                        .focusGroup(),
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(bottom = 12.dp),
+                                .padding(bottom = 12.dp)
+                                .clickable { isExpanded = !isExpanded }
+                                .focusable()
+                                .focusRequester(themeCardFocusRequester)
+                                .focusProperties {
+                                    down = if (isExpanded) FocusRequester.Default else videoCardFocusRequester
+                                }
+                                .onKeyEvent { keyEvent ->
+                                    when (keyEvent.key) {
+                                        Key.Enter, Key.Spacebar -> {
+                                            isExpanded = !isExpanded
+                                            true // Handled
+                                        }
+                                        else -> false // Let default handling occur
+                                    }
+                                },
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
@@ -560,29 +564,30 @@ fun SettingsScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { isExpanded = !isExpanded }
-                        .focusable()
-                        .focusRequester(videoCardFocusRequester)
-                        .focusProperties {
-                            up = themeCardFocusRequester
-                            down = aboutCardFocusRequester
-                        }
-                        .onKeyEvent { keyEvent ->
-                            when (keyEvent.key) {
-                                Key.Enter, Key.Spacebar -> {
-                                    isExpanded = !isExpanded
-                                    true // Handled
-                                }
-                                else -> false // Let default handling occur
-                            }
-                        },
+                        .focusGroup(),
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(bottom = 12.dp),
+                                .padding(bottom = 12.dp)
+                                .clickable { isExpanded = !isExpanded }
+                                .focusable()
+                                .focusRequester(videoCardFocusRequester)
+                                .focusProperties {
+                                    up = themeCardFocusRequester
+                                    down = if (isExpanded) FocusRequester.Default else aboutCardFocusRequester
+                                }
+                                .onKeyEvent { keyEvent ->
+                                    when (keyEvent.key) {
+                                        Key.Enter, Key.Spacebar -> {
+                                            isExpanded = !isExpanded
+                                            true // Handled
+                                        }
+                                        else -> false // Let default handling occur
+                                    }
+                                },
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
@@ -1383,12 +1388,14 @@ fun ThemeModeOption(
     onSelect: (ThemeMode) -> Unit
 ) {
     val focusRequester = remember { FocusRequester() }
+    val interactionSource = remember { MutableInteractionSource() }
     
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onSelect(mode) }
-            .focusable()
+            .tvFocusIndication(interactionSource, shape = RoundedCornerShape(8.dp))
+            .clickable(interactionSource = interactionSource, indication = LocalIndication.current) { onSelect(mode) }
+            .focusable(interactionSource = interactionSource)
             .focusRequester(focusRequester)
             .onKeyEvent { keyEvent ->
                 when (keyEvent.key) {
@@ -1422,6 +1429,7 @@ fun ColorOption(
     label: String? = null
 ) {
     val focusRequester = remember { FocusRequester() }
+    val interactionSource = remember { MutableInteractionSource() }
     
     Column(
         horizontalAlignment = Alignment.CenterHorizontally
@@ -1429,10 +1437,11 @@ fun ColorOption(
         Box(
             modifier = Modifier
                 .size(48.dp)
+                .tvFocusIndication(interactionSource, shape = CircleShape)
                 .clip(CircleShape)
                 .background(color)
-                .clickable { onSelect(color) }
-                .focusable()
+                .clickable(interactionSource = interactionSource, indication = LocalIndication.current) { onSelect(color) }
+                .focusable(interactionSource = interactionSource)
                 .focusRequester(focusRequester)
                 .onKeyEvent { keyEvent ->
                     when (keyEvent.key) {
