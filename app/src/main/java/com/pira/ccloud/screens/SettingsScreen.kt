@@ -81,6 +81,7 @@ import com.pira.ccloud.data.model.FontType
 import com.pira.ccloud.data.model.WatchedEpisode
 import com.pira.ccloud.utils.BackupUtils
 import com.pira.ccloud.utils.BackupResult
+import com.pira.ccloud.utils.DeviceUtils
 import com.pira.ccloud.ui.theme.ThemeMode
 import com.pira.ccloud.ui.theme.ThemeSettings
 import com.pira.ccloud.ui.theme.ThemeManager
@@ -159,13 +160,26 @@ fun SettingsScreen(
     }
 
     // Focus requesters for handling TV remote navigation
-    val focusRequester = remember { FocusRequester() }
+    val isTv = remember { DeviceUtils.isTv(context) }
     val themeCardFocusRequester = remember { FocusRequester() }
     val videoCardFocusRequester = remember { FocusRequester() }
     val aboutCardFocusRequester = remember { FocusRequester() }
     val updateCardFocusRequester = remember { FocusRequester() }
     val backupCardFocusRequester = remember { FocusRequester() }
     val resetCardFocusRequester = remember { FocusRequester() }
+    
+    // On TV, give the first settings card D-pad focus as soon as the screen appears -
+    // the screen itself must NOT be a focus target (that traps focus on an invisible
+    // container instead of letting it reach any of the actual option cards below).
+    LaunchedEffect(isTv) {
+        if (isTv) {
+            try {
+                themeCardFocusRequester.requestFocus()
+            } catch (e: Exception) {
+                // Ignore - view may not be laid out yet
+            }
+        }
+    }
     
     // Configure JSON to ignore unknown keys
     val json = Json { ignoreUnknownKeys = true }
@@ -324,9 +338,7 @@ fun SettingsScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
-            .focusRequester(focusRequester)
-            .focusable(),
+            .padding(16.dp),
     ) {
         item {
             AnimatedVisibility(
